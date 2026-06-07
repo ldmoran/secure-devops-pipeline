@@ -1,0 +1,16 @@
+[
+  "brace_count",
+  "bracket_depth",
+  "code_length",
+  "comment_ratio",
+  "dangerous_function_count",
+  "keyword_count",
+  "line_count",
+  "parenthesis_count",
+  "reflection_count",
+  "sanitization_count",
+  "sql_pattern_count",
+  "system_call_count",
+  "token_count",
+  "try_catch_count"
+]

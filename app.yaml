@@ -1,0 +1,6 @@
+runtime: python-3.9
+env: flex
+entrypoint: gunicorn --chdir app app:app
+
+env_variables:
+  FLASK_ENV: "production"

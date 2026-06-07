@@ -1,0 +1,190 @@
+name: Secure DevOps Pipeline
+
+on:
+  pull_request:
+    branches:
+      - test
+  push:
+    branches:
+      - main
+      - test
+
+jobs:
+  security-check:
+    runs-on: ubuntu-latest
+    name: Security Check - Vulnerability Classification
+    
+    if: github.event_name == 'pull_request' && github.base_ref == 'test'
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Check if model exists
+        run: |
+          if [ ! -f "model/classifier_model.joblib" ]; then
+            echo "Model not found. Running training..."
+            python model/train_model.py
+          else
+            echo "Model found"
+          fi
+      
+      - name: Analyze code with model
+        run: |
+          python -c "
+          import joblib
+          import json
+          import sys
+          sys.path.insert(0, '.')
+          from security_checker.feature_extractor import JavaCodeAnalyzer
+          import numpy as np
+          
+          # Load model
+          model = joblib.load('model/classifier_model.joblib')
+          with open('model/feature_names.json', 'r') as f:
+              feature_names = json.load(f)
+          
+          # Get changed files
+          import subprocess
+          result = subprocess.run(['git', 'diff', 'HEAD..origin/${{ github.base_ref }}', '--name-only'], 
+                                capture_output=True, text=True)
+          
+          java_files = [f for f in result.stdout.split('\n') if f.endswith('.java')]
+          
+          if not java_files:
+              print('No Java files changed')
+              sys.exit(0)
+          
+          vulnerable_files = []
+          
+          for java_file in java_files:
+              try:
+                  with open(java_file, 'r', encoding='utf-8', errors='ignore') as f:
+                      code = f.read()
+                  
+                  if len(code.strip()) == 0:
+                      continue
+                  
+                  # Extract features
+                  features_dict = JavaCodeAnalyzer.extract_features(code)
+                  features_array = np.array([features_dict[name] for name in feature_names]).reshape(1, -1)
+                  
+                  # Predict
+                  prediction = model.predict(features_array)[0]
+                  probability = model.predict_proba(features_array)[0]
+                  
+                  if prediction == 1:  # VULNERABLE
+                      vulnerable_files.append({
+                          'file': java_file,
+                          'confidence': float(max(probability)),
+                          'vulnerable_prob': float(probability[1])
+                      })
+                  
+              except Exception as e:
+                  print(f'Error analyzing {java_file}: {e}')
+          
+          if vulnerable_files:
+              print('VULNERABLE CODE DETECTED:')
+              for item in vulnerable_files:
+                  print(f\"  - {item['file']}: {item['vulnerable_prob']*100:.1f}% vulnerable\")
+              sys.exit(1)
+          else:
+              print('All Java files passed security check')
+              sys.exit(0)
+          "
+      
+      - name: Comment PR on vulnerability
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ **Security Check Failed**: Vulnerable code detected. Please fix the issues before merging.'
+            })
+      
+      - name: Add vulnerable label
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: ['security-issue']
+            })
+
+  tests:
+    runs-on: ubuntu-latest
+    name: Unit Tests
+    needs: security-check
+    if: success()
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short
+      
+      - name: Comment PR on test success
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ **All Tests Passed**: Ready for merge'
+            })
+
+  merge-and-deploy:
+    runs-on: ubuntu-latest
+    name: Merge to Main and Deploy
+    if: github.ref == 'refs/heads/test'
+    
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+      
+      - name: Merge test to main
+        run: |
+          git fetch origin main
+          git checkout main
+          git merge --no-ff origin/test -m "Auto-merge from test branch"
+          git push origin main
+      
+      - name: Deploy to Render
+        run: |
+          echo "Deployment triggered - Render webhook will handle the deploy"
+          echo "Webhook URL configured in Render dashboard"
