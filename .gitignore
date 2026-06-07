@@ -45,8 +45,11 @@ data/processed/*.csv
 # Models
 model/*.pkl
 model/*.joblib
-!model/.gitkeep
 
+!model/classifier_model.joblib
+!model/scaler.joblib
+!model/feature_names.json
+!model/.gitkeep
 # Logs
 *.log
 logs/

@@ -1,5 +1,10 @@
 name: Secure DevOps Pipeline
 
+permissions:
+  issues: write
+  pull-requests: write
+  contents: write
+
 on:
   pull_request:
     branches:
