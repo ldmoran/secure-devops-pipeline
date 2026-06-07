@@ -6,11 +6,12 @@ import os
 import json
 import joblib
 import numpy as np
+import requests 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pathlib import Path
 import sys
-
+import pandas as pd
 # Agregar ruta del proyecto
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -24,6 +25,22 @@ CORS(app)
 MODEL = None
 FEATURE_NAMES = None
 MODEL_LOADED = False
+
+# 🔔 TELEGRAM CONFIG
+TELEGRAM_BOT_TOKEN = "8620126753:AAHQoU_jR-JaYk55yyvyk6gAPTOs2gpwtDI"
+TELEGRAM_CHAT_ID = 6353398881
+
+
+def send_telegram_message(message):
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message
+        }
+        requests.post(url, data=payload)
+    except Exception as e:
+        print("Error enviando Telegram:", e)
 
 def load_model():
     """Carga el modelo entrenado"""
@@ -98,7 +115,11 @@ def predict():
         class_names = ['SEGURO', 'VULNERABLE']
         predicted_class = class_names[prediction]
         confidence = float(max(probability))
-        
+        send_telegram_message(
+            "🔍 RESULTADO MODELO\n"
+            f"📌 Predicción: {predicted_class}\n"
+            f"📊 Confianza: {confidence:.2f}"
+        )
         return jsonify({
             'status': 'success',
             'prediction': predicted_class,
@@ -217,10 +238,11 @@ def internal_error(error):
 
 if __name__ == '__main__':
     import pandas as pd
-    
+    send_telegram_message("🚀 Bot Flask iniciado correctamente")
     # Cargar modelo
     if not load_model():
         print("⚠️  Advertencia: Modelo no cargado. Solo /health disponible")
+        send_telegram_message("⚠️ Advertencia: Modelo no cargado. Solo /health disponible")
     
     # Configurar puerto
     port = int(os.getenv('PORT', 5000))
