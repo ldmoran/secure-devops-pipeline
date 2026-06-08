@@ -85,19 +85,19 @@ jobs:
               print('SAFE')
               sys.exit(0)
           "
-      - name: Telegram SUCCESS
-        if: success()
-        run: |
-          curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_JR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
-          -d chat_id=6353398881 \
-          -d text="✅ Código SEGURO. Pipeline completado y listo para deploy"
+      # - name: Telegram SUCCESS
+      #   if: success()
+      #   run: |
+      #     curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_JR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
+      #     -d chat_id=6353398881 \
+      #     -d text="✅ Código SEGURO. Pipeline completado y listo para deploy"
 
-      - name: Telegram FAIL
-        if: failure()
-        run: |
-          curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_jR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
-          -d chat_id=6353398881 \
-          -d text="❌ Código VULNERABLE detectado"
+      # - name: Telegram FAIL
+      #   if: failure()
+      #   run: |
+      #     curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_jR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
+      #     -d chat_id=6353398881 \
+      #     -d text="❌ Código VULNERABLE detectado"
 
       - name: Create Issue
         if: failure()
