@@ -25,96 +25,81 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
+
+      - name: Telegram - Start Security Check
+        run: |
+          curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_jR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
+          -d chat_id=6353398881 \
+          -d text="🔍 Iniciando análisis de seguridad en PR"
+
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-      
-      - name: Check if model exists
+
+      - name: Check model
         run: |
           if [ ! -f "model/classifier_model.joblib" ]; then
             python model/train_model.py
           fi
-      
-      - name: Analyze code with model
+
+      - name: Analyze code
         run: |
           python -c "
           import joblib, json, sys, subprocess, numpy as np
           from security_checker.feature_extractor import JavaCodeAnalyzer
-          import numpy as np
-          
-          # Load model
+
           model = joblib.load('model/classifier_model.joblib')
-          with open('model/feature_names.json', 'r') as f:
-              feature_names = json.load(f)
-          
-          # Get changed files
-          import subprocess
-          result = subprocess.run(['git', 'diff', 'HEAD..origin/${{ github.base_ref }}', '--name-only'], 
-                                capture_output=True, text=True)
-          
-          java_files = [f for f in result.stdout.split('\n') if f.endswith('.java')]
-          
-          if not java_files:
-              print('No Java files changed')
-              sys.exit(0)
-          
-          vulnerable_files = []
-          
-          for java_file in java_files:
+          feature_names = json.load(open('model/feature_names.json'))
+
+          result = subprocess.run(
+              ['git', 'diff', 'HEAD..origin/${{ github.base_ref }}', '--name-only'],
+              capture_output=True, text=True
+          )
+
+          files = [f for f in result.stdout.split() if f.endswith('.java')]
+
+          vulnerable = False
+
+          for f in files:
               try:
-                  with open(java_file, 'r', encoding='utf-8', errors='ignore') as f:
-                      code = f.read()
-                  
-                  if len(code.strip()) == 0:
+                  code = open(f, 'r', errors='ignore').read()
+                  if not code.strip():
                       continue
-                  
-                  # Extract features
-                  features_dict = JavaCodeAnalyzer.extract_features(code)
-                  features_array = np.array([features_dict[name] for name in feature_names]).reshape(1, -1)
-                  
-                  # Predict
-                  prediction = model.predict(features_array)[0]
-                  probability = model.predict_proba(features_array)[0]
-                  
-                  if prediction == 1:  # VULNERABLE
-                      vulnerable_files.append({
-                          'file': java_file,
-                          'confidence': float(max(probability)),
-                          'vulnerable_prob': float(probability[1])
-                      })
-                  
-              except Exception as e:
-                  print(f'Error analyzing {java_file}: {e}')
-          
-          if vulnerable_files:
-              print('VULNERABLE CODE DETECTED:')
-              for item in vulnerable_files:
-                  print(f\"  - {item['file']}: {item['vulnerable_prob']*100:.1f}% vulnerable\")
+
+                  feats = JavaCodeAnalyzer.extract_features(code)
+                  X = np.array([feats[n] for n in feature_names]).reshape(1, -1)
+
+                  if model.predict(X)[0] == 1:
+                      vulnerable = True
+              except:
+                  pass
+
+          if vulnerable:
+              print('VULNERABLE')
               sys.exit(1)
           else:
-              print('All Java files passed security check')
+              print('SAFE')
               sys.exit(0)
           "
-      
-      - name: Comment PR on vulnerability
+      - name: Telegram SUCCESS
+        if: success()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_JR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
+          -d chat_id=6353398881 \
+          -d text="✅ Código SEGURO. Pipeline completado y listo para deploy"
+
+      - name: Telegram FAIL
         if: failure()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: '❌ **Security Check Failed**: Vulnerable code detected. Please fix the issues before merging.'
-            })
-      
-      - name: Add vulnerable label
+        run: |
+          curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_jR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
+          -d chat_id=6353398881 \
+          -d text="❌ Código VULNERABLE detectado"
+
+      - name: Create Issue
         if: failure()
         uses: actions/github-script@v6
         with:
@@ -163,10 +148,28 @@ jobs:
 
   merge-and-deploy:
     runs-on: ubuntu-latest
-    name: Deploy to Render
+    name: Merge to Main and Deploy
+    if: github.ref == 'refs/heads/test'
 
     steps:
-      - name: Deploy
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
         run: |
-          echo "Deploy controlado por Render webhook (NO auto-merge en GitHub Actions)"
-  # trigger pipeline tests
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Merge test to main
+        run: |
+          git fetch origin main
+          git checkout main
+          git merge --no-ff origin/test -m "Auto-merge from test branch"
+          git push origin main
+
+      - name: Deploy to Render
+        run: |
+          echo "Deployment triggered - Render webhook will handle the deploy"
+          echo "Webhook URL configured in Render dashboard"
+# trigger pipeline tests
