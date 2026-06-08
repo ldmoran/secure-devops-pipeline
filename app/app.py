@@ -23,6 +23,7 @@ CORS(app)
 
 # Variables globales
 MODEL = None
+SCALER = None
 FEATURE_NAMES = None
 MODEL_LOADED = False
 
@@ -44,14 +45,16 @@ def send_telegram_message(message):
 
 def load_model():
     """Carga el modelo entrenado"""
-    global MODEL, FEATURE_NAMES, MODEL_LOADED
+    global MODEL, SCALER, FEATURE_NAMES, MODEL_LOADED
     
     model_path = Path(__file__).parent.parent / 'model' / 'classifier_model.joblib'
     features_path = Path(__file__).parent.parent / 'model' / 'feature_names.json'
+    scaler_path = Path(__file__).parent.parent / 'model' / 'scaler.joblib'
     
     try:
         if model_path.exists() and features_path.exists():
             MODEL = joblib.load(model_path)
+            SCALER = joblib.load(scaler_path)
             with open(features_path, 'r') as f:
                 FEATURE_NAMES = json.load(f)
             MODEL_LOADED = True
@@ -106,7 +109,7 @@ def predict():
         # Extraer características
         features_dict = JavaCodeAnalyzer.extract_features(code)
         features_array = np.array([features_dict[name] for name in FEATURE_NAMES]).reshape(1, -1)
-        
+        features_array = SCALER.transform(features_array)
         # Predicción
         prediction = MODEL.predict(features_array)[0]
         probability = MODEL.predict_proba(features_array)[0]
@@ -172,7 +175,7 @@ def batch_predict():
             # Extraer características
             features_dict = JavaCodeAnalyzer.extract_features(code)
             features_array = np.array([features_dict[name_feat] for name_feat in FEATURE_NAMES]).reshape(1, -1)
-            
+            features_array = SCALER.transform(features_array)
             # Predicción
             prediction = MODEL.predict(features_array)[0]
             probability = MODEL.predict_proba(features_array)[0]
