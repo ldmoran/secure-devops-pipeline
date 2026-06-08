@@ -134,7 +134,18 @@ jobs:
       - name: Run tests
         run: |
           pytest tests/ -v --tb=short
-      
+      - name: Telegram TEST SUCCESS
+        if: success()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_jR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
+          -d chat_id=6353398881 \
+          -d text="🧪 TESTS OK: Todos los tests pasaron correctamente"
+      - name: Telegram TEST FAIL
+        if: failure()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_JR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
+          -d chat_id=6353398881 \
+          -d text="❌ TESTS FALLARON: revisar pipeline"
       - name: Comment PR on test success
         uses: actions/github-script@v6
         with:
