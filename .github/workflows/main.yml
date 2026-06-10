@@ -81,10 +81,14 @@ jobs:
                   feats = JavaCodeAnalyzer.extract_features(code)
                   X = np.array([feats[n] for n in feature_names]).reshape(1, -1)
 
-                  if model.predict(X)[0] == 1:
+                  prediction = model.predict(X)[0]
+
+                  print(f'{f} -> Predicción: {prediction}')
+
+                  if prediction == 1:
                       vulnerable = True
-              except:
-                  pass
+                except Exception as e:
+                    print(f'ERROR ANALIZANDO {f}: {e}')
 
           if vulnerable:
               print('VULNERABLE')
