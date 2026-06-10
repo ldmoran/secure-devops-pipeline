@@ -3,8 +3,6 @@ package com.ejemplo.usuarios.model;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
-import java.sql.Statement;
-
 public class Usuario {
 
     private Long id;
@@ -22,18 +20,6 @@ public class Usuario {
         this.id = id;
         this.nombre = nombre;
         this.email = email;
-    }
-
-    // MÉTODO VULNERABLE SOLO PARA PRUEBAS
-    public void login(String usuario, String password) throws Exception {
-
-        String query =
-            "SELECT * FROM usuarios WHERE usuario='"
-            + usuario +
-            "' AND password='"
-            + password + "'";
-
-        Statement stmt = null;
     }
 
     public Long getId() { return id; }
