@@ -87,8 +87,9 @@ jobs:
 
                   if prediction == 1:
                       vulnerable = True
-                except Exception as e:
-                    print(f'ERROR ANALIZANDO {f}: {e}')
+
+              except Exception as e:
+                  print(f'ERROR ANALIZANDO {f}: {e}')
 
           if vulnerable:
               print('VULNERABLE')
