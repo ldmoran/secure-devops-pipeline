@@ -18,7 +18,6 @@ jobs:
   security-check:
     runs-on: ubuntu-latest
     name: Security Check - Vulnerability Classification
-
     if: github.event_name == 'pull_request' && github.base_ref == 'test'
 
     steps:
@@ -28,8 +27,8 @@ jobs:
 
       - name: Telegram - Start Security Check
         run: |
-          curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_jR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
-          -d chat_id=6353398881 \
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
           -d text="🔍 Iniciando análisis de seguridad en PR"
 
       - uses: actions/setup-python@v4
@@ -85,19 +84,20 @@ jobs:
               print('SAFE')
               sys.exit(0)
           "
-      # - name: Telegram SUCCESS
-      #   if: success()
-      #   run: |
-      #     curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_JR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
-      #     -d chat_id=6353398881 \
-      #     -d text="✅ Código SEGURO. Pipeline completado y listo para deploy"
 
-      # - name: Telegram FAIL
-      #   if: failure()
-      #   run: |
-      #     curl -s -X POST https://api.telegram.org/bot8620126753:AAHQoU_jR-JaYk55yyvyk6gAPTOs2gpwtDI/sendMessage \
-      #     -d chat_id=6353398881 \
-      #     -d text="❌ Código VULNERABLE detectado"
+      - name: Telegram - Codigo SEGURO
+        if: success()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+          -d text="✅ Código SEGURO. Análisis ML superado. Continuando pipeline."
+
+      - name: Telegram - Codigo VULNERABLE
+        if: failure()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+          -d text="❌ Código VULNERABLE detectado. PR bloqueado."
 
       - name: Create Issue
         if: failure()
@@ -109,18 +109,18 @@ jobs:
               repo: context.repo.repo,
               title: "Vulnerabilidad detectada",
               body: "Código vulnerable en PR",
-              labels: ["security-issue"]
+              labels: ["security-issue", "fixing-required"]
             })
 
   tests:
     runs-on: ubuntu-latest
     name: Unit Tests
     needs: security-check
+    if: github.event_name == 'pull_request' && github.base_ref == 'test'
 
     steps:
       - uses: actions/checkout@v3
 
-      # TESTS PYTHON
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -134,7 +134,6 @@ jobs:
         run: |
           pytest tests/ -v --tb=short
 
-      # TESTS JAVA
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -157,12 +156,27 @@ jobs:
         run: |
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
           -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
-          -d text="❌ TESTS FALLARON"
+          -d text="❌ TESTS FALLARON. Pipeline detenido."
+
+      - name: Create Issue for Failed Tests
+        if: failure()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: "Tests fallidos",
+              body: "Los tests del pipeline han fallado.",
+              labels: ["tests-failed"]
+            })
 
   merge-and-deploy:
     runs-on: ubuntu-latest
     name: Merge to Main and Deploy
-    if: github.ref == 'refs/heads/test'
+    # SIN needs: tests — este job se activa por push, no por PR
+    # El push ocurre cuando el PR ya fue aceptado y los cambios están en test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/test'
 
     steps:
       - uses: actions/checkout@v3
@@ -185,6 +199,18 @@ jobs:
         run: |
           echo "Deployment triggered - Render webhook will handle the deploy"
           echo "Webhook URL configured in Render dashboard"
+
+      - name: Telegram - Deploy exitoso
+        if: success()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+          -d text="🚀 Merge test→main exitoso. Deploy en Render iniciado."
+
+      - name: Telegram - Deploy fallido
+        if: failure()
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
+          -d text="💥 Falló el merge o deploy hacia main."
 # trigger pipeline tests
-
-
