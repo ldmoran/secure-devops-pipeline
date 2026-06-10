@@ -59,7 +59,16 @@ jobs:
               capture_output=True, text=True
           )
 
+          print('=== ARCHIVOS MODIFICADOS ===')
+          print(result.stdout)
+
           files = [f for f in result.stdout.split() if f.endswith('.java')]
+
+          print('=== ARCHIVOS JAVA ===')
+          print(files)
+
+          if not files:
+              print('NO SE ENCONTRARON ARCHIVOS JAVA')
 
           vulnerable = False
 
@@ -72,10 +81,15 @@ jobs:
                   feats = JavaCodeAnalyzer.extract_features(code)
                   X = np.array([feats[n] for n in feature_names]).reshape(1, -1)
 
-                  if model.predict(X)[0] == 1:
+                  prediction = model.predict(X)[0]
+
+                  print(f'{f} -> Predicción: {prediction}')
+
+                  if prediction == 1:
                       vulnerable = True
-              except:
-                  pass
+
+              except Exception as e:
+                  print(f'ERROR ANALIZANDO {f}: {e}')
 
           if vulnerable:
               print('VULNERABLE')
