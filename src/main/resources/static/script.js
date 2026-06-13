@@ -1,5 +1,5 @@
 // Configuración de la URL base de tu backend en Render (Cambiar por tu URL real de Render cuando la tengas)
-const API_BASE_URL = "https://tu-api-en-render.onrender.com";
+const API_BASE_URL = "https://secure-devops-pipeline-1.onrender.com";
 
 // Elementos del DOM
 const statusIndicator = document.getElementById("status-indicator");
