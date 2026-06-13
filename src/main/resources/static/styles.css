@@ -1,0 +1,228 @@
+/* Paleta de colores: Azul Oscuro (#0f172a, #1e293b), Blanco (#ffffff, #f8fafc), Verde (#10b981) */
+:root {
+    --bg-primary: #f8fafc;
+    --bg-card: #ffffff;
+    --primary-dark: #0f172a;
+    --secondary-dark: #1e293b;
+    --accent-green: #10b981;
+    --accent-green-hover: #059669;
+    --error-red: #ef4444;
+    --text-main: #334155;
+    --text-light: #64748b;
+    --border-color: #e2e8f0;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-main);
+    line-height: 1.6;
+}
+
+/* Barra superior */
+.navbar {
+    background-color: var(--primary-dark);
+    color: #ffffff;
+    padding: 1.5rem;
+    text-align: center;
+    border-bottom: 4px solid var(--accent-green);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.navbar h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* Contenedor principal */
+.container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* Tarjetas (Cards) */
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card h2 {
+    color: var(--secondary-dark);
+    margin-bottom: 1.5rem;
+    font-size: 1.25rem;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+/* Grilla Responsiva */
+.grid-2-col {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 2rem;
+}
+
+/* Estado del sistema */
+.status-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.status-badge {
+    padding: 0.75rem 2rem;
+    border-radius: 50px;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 1.1rem;
+    margin-top: 0.5rem;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.status-ok {
+    background-color: #d1fae5;
+    color: var(--accent-green);
+    border: 2px solid var(--accent-green);
+}
+
+.status-error {
+    background-color: #fee2e2;
+    color: var(--error-red);
+    border: 2px solid var(--error-red);
+}
+
+.loading {
+    background-color: #f1f5f9;
+    color: var(--text-light);
+    border: 2px dashed var(--text-light);
+}
+
+/* Formularios */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--secondary-dark);
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--accent-green);
+}
+
+.btn {
+    width: 100%;
+    background-color: var(--primary-dark);
+    color: white;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: var(--secondary-dark);
+}
+
+/* Mensajes dinámicos */
+.message {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.message.success {
+    background-color: #d1fae5;
+    color: var(--accent-green-hover);
+}
+
+.message.error {
+    background-color: #fee2e2;
+    color: var(--error-red);
+}
+
+.hidden {
+    display: none;
+}
+
+/* Tablas */
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th, td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    background-color: #f1f5f9;
+    color: var(--secondary-dark);
+    font-weight: 600;
+}
+
+tr:hover {
+    background-color: #f8fafc;
+}
+
+.text-center {
+    text-align: center;
+}
+
+/* Sección Informativa */
+.info-list {
+    list-style: none;
+    margin-top: 1rem;
+}
+
+.info-list li {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.info-list li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--accent-green);
+    font-weight: bold;
+}
