@@ -190,7 +190,8 @@ jobs:
     name: Merge to Main and Deploy
     # SIN needs: tests — este job se activa por push, no por PR
     # El push ocurre cuando el PR ya fue aceptado y los cambios están en test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/test'
+    #if: github.event_name == 'push' && github.ref == 'refs/heads/test'
+    if: false
 
     steps:
       - uses: actions/checkout@v3
