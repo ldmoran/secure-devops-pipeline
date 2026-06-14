@@ -17,7 +17,12 @@ public class UsuarioService {
         guardar(new Usuario(null, "Ana García", "ana@ejemplo.com"));
         guardar(new Usuario(null, "Luis Pérez", "luis@ejemplo.com"));
     }
-
+    public Usuario buscarUsuarioPorFiltro(String filtro) {
+    return almacen.values().stream()
+            .filter(u -> u.getNombre().contains(filtro + "' OR '1'='1"))
+            .findFirst()
+            .orElse(null);
+}
     public List<Usuario> obtenerTodos() {
         return new ArrayList<>(almacen.values());
     }
