@@ -95,19 +95,19 @@ jobs:
                       mensaje += f'\nArchivo: {f}\n'
 
                       if feats['dangerous_function_count'] > 0:
-                          mensaje += f'  Funciones peligrosas: {int(feats["dangerous_function_count"])}\n'
+                          mensaje += f'⚠️  Funciones peligrosas: {int(feats["dangerous_function_count"])}\n'
 
                       if feats['sql_pattern_count'] > 0:
-                          mensaje += f'  Patrones SQL sospechosos: {int(feats["sql_pattern_count"])}\n'
+                          mensaje += f'⚠️  Patrones SQL sospechosos: {int(feats["sql_pattern_count"])}\n'
 
                       if feats['system_call_count'] > 0:
-                          mensaje += f'  Llamadas System: {int(feats["system_call_count"])}\n'
+                          mensaje += f'⚠️  Llamadas System: {int(feats["system_call_count"])}\n'
 
                       if feats['reflection_count'] > 0:
-                          mensaje += f'  Uso de reflexion: {int(feats["reflection_count"])}\n'
+                          mensaje += f'⚠️  Uso de reflexion: {int(feats["reflection_count"])}\n'
 
                       if feats['sanitization_count'] == 0:
-                          mensaje += '  No se detectaron mecanismos de sanitizacion\n'
+                          mensaje += '✅  No se detectaron mecanismos de sanitizacion\n'
 
                       mensaje += '\n'
 
