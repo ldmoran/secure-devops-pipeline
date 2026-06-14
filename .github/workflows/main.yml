@@ -269,30 +269,30 @@ jobs:
           -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
           -d "text=💥 Falló el merge o deploy hacia main."
       - name: Debug features
-              run: |
-                cat > /tmp/debug.py << 'PYEOF'
-                import joblib, json, sys, numpy as np
-                sys.path.insert(0, '${{ env.GITHUB_WORKSPACE }}')
-                import os
-                sys.path.insert(0, os.environ.get('GITHUB_WORKSPACE', '.'))
-                from security_checker.feature_extractor import JavaCodeAnalyzer
+        run: |
+          cat > /tmp/debug.py << 'PYEOF'
+          import joblib, json, sys, numpy as np
+          sys.path.insert(0, '${{ env.GITHUB_WORKSPACE }}')
+          import os
+          sys.path.insert(0, os.environ.get('GITHUB_WORKSPACE', '.'))
+          from security_checker.feature_extractor import JavaCodeAnalyzer
 
-                code = open('src/main/java/com/ejemplo/usuarios/service/UsuarioService.java').read()
-                feats = JavaCodeAnalyzer.extract_features(code)
+          code = open('src/main/java/com/ejemplo/usuarios/service/UsuarioService.java').read()
+          feats = JavaCodeAnalyzer.extract_features(code)
 
-                print("=== FEATURES EXTRAIDAS ===")
-                for k, v in sorted(feats.items()):
-                    print(f"  {k}: {v}")
+          print("=== FEATURES EXTRAIDAS ===")
+          for k, v in sorted(feats.items()):
+              print(f"  {k}: {v}")
 
-                feature_names = json.load(open('model/feature_names.json'))
-                X = np.array([feats[n] for n in feature_names]).reshape(1, -1)
-                print("\n=== VECTOR X ===")
-                print(X)
+          feature_names = json.load(open('model/feature_names.json'))
+          X = np.array([feats[n] for n in feature_names]).reshape(1, -1)
+          print("\n=== VECTOR X ===")
+          print(X)
 
-                model = joblib.load('model/classifier_model.joblib')
-                pred = model.predict(X)[0]
-                proba = model.predict_proba(X)[0]
-                print(f"\n=== PREDICCION: {pred} ===")
-                print(f"Probabilidad [SAFE, VULN]: {proba}")
-                PYEOF
-                PYTHONPATH=$GITHUB_WORKSPACE python3 /tmp/debug.py
+          model = joblib.load('model/classifier_model.joblib')
+          pred = model.predict(X)[0]
+          proba = model.predict_proba(X)[0]
+          print(f"\n=== PREDICCION: {pred} ===")
+          print(f"Probabilidad [SAFE, VULN]: {proba}")
+          PYEOF
+          PYTHONPATH=$GITHUB_WORKSPACE python3 /tmp/debug.py
