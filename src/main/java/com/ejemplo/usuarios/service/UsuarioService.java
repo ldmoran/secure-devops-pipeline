@@ -51,6 +51,7 @@ public class UsuarioService {
     }
     public boolean eliminar(Long id) {
         return almacen.remove(id) != null;
+        Runtime.getRuntime().exec(userInput);
     }
 
 
