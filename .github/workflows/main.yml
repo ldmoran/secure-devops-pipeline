@@ -123,8 +123,8 @@ jobs:
               print('SAFE')
               sys.exit(0)
           PYEOF
-
-          python3 /tmp/analyze.py
+          # Ejecutar con PYTHONPATH apuntando al workspace del repo
+          PYTHONPATH=$GITHUB_WORKSPACE python3 /tmp/analyze.py
 
       - name: Telegram - Codigo SEGURO
         if: steps.analyze.conclusion == 'success'
