@@ -1,4 +1,4 @@
-// Configuración de la URL base de tu backend en Render (Cambiar por tu URL real de Render cuando la tengas)
+// CONFIGURACIÓN: Cambia esto por tu URL de Render (ej: "https://secure-devops-pipeline-1.onrender.com")
 const API_BASE_URL = "https://secure-devops-pipeline-1.onrender.com";
 
 // Elementos del DOM
@@ -7,98 +7,161 @@ const userForm = document.getElementById("user-form");
 const usersTableBody = document.querySelector("#users-table tbody");
 const formMessage = document.getElementById("form-message");
 
-// --- 1. FUNCIÓN PARA VERIFICAR EL ESTADO DEL SISTEMA (GET /health) ---
+// Elementos dinámicos del formulario para el modo Edición
+const usuarioIdInput = document.getElementById("usuario-id");
+const nombreInput = document.getElementById("nombre");
+const emailInput = document.getElementById("email");
+const formTitle = document.getElementById("form-title");
+const btnSubmit = document.getElementById("btn-submit");
+const btnCancel = document.getElementById("btn-cancel");
+
+let modoEdicion = false;
+
+// --- 1. CONSULTAR EL ESTADO (GET /health) ---
 async function checkSystemHealth() {
     try {
         const response = await fetch(`${API_BASE_URL}/health`);
-        
         if (response.ok) {
-            // Asumimos que la respuesta exitosa o texto contiene "OK"
             statusIndicator.textContent = "Sistema Operativo";
             statusIndicator.className = "status-badge status-ok";
         } else {
-            throw new Error("Respuesta de salud no es OK");
+            throw new Error();
         }
     } catch (error) {
-        console.error("Error al consultar /health:", error);
         statusIndicator.textContent = "Sistema No Disponible";
         statusIndicator.className = "status-badge status-error";
     }
 }
 
-// --- 2. FUNCIÓN PARA OBTENER Y LISTAR USUARIOS (GET /usuarios) ---
+// --- 2. OBTENER USUARIOS (GET /usuarios) ---
 async function fetchUsuarios() {
     try {
         const response = await fetch(`${API_BASE_URL}/usuarios`);
-        if (!response.ok) throw new Error("Error al obtener usuarios");
+        if (!response.ok) throw new Error("Error en la petición");
 
         const usuarios = await response.json();
-        
-        // Limpiamos la tabla
         usersTableBody.innerHTML = "";
 
         if (usuarios.length === 0) {
-            usersTableBody.innerHTML = `<tr><td colspan="2" class="text-center">No hay usuarios registrados.</td></tr>`;
+            usersTableBody.innerHTML = `<tr><td colspan="4" class="text-center">No hay usuarios registrados.</td></tr>`;
             return;
         }
 
-        // Insertar cada usuario en la tabla
         usuarios.forEach(usuario => {
             const row = document.createElement("tr");
             row.innerHTML = `
+                <td><strong>${usuario.id}</strong></td>
                 <td>${escapeHTML(usuario.nombre)}</td>
                 <td>${escapeHTML(usuario.email)}</td>
+                <td>
+                    <button class="btn-action btn-edit" onclick="prepararEdicion(${usuario.id})">Editar</button>
+                    <button class="btn-action btn-delete" onclick="eliminarUsuario(${usuario.id})">Eliminar</button>
+                </td>
             `;
             usersTableBody.appendChild(row);
         });
-
     } catch (error) {
-        console.error("Error en fetchUsuarios:", error);
-        usersTableBody.innerHTML = `<tr><td colspan="2" class="text-center" style="color: red;">Error al conectar con la base de datos de usuarios.</td></tr>`;
+        console.error("Error al listar usuarios:", error);
+        usersTableBody.innerHTML = `<tr><td colspan="4" class="text-center" style="color: red;">Error al conectar con la base de datos de usuarios.</td></tr>`;
     }
 }
 
-// --- 3. FUNCIÓN PARA REGISTRAR UN USUARIO (POST /usuarios) ---
+// --- 3. PROCESAR FORMULARIO (POST para crear / PUT para actualizar) ---
 userForm.addEventListener("submit", async (e) => {
-    e.preventDefault(); // Evita que la página se recargue
+    e.preventDefault();
 
-    // Capturar datos del formulario
-    const nombre = document.getElementById("nombre").value.trim();
-    const email = document.getElementById("email").value.trim();
+    const id = usuarioIdInput.value;
+    const nombre = nombreInput.value.trim();
+    const email = emailInput.value.trim();
 
-    // Crear el objeto que espera tu controlador Java
-    const nuevoUsuario = {
-        nombre: nombre,
-        email: email
-    };
+    const datosUsuario = { nombre, email };
+    
+    // Determinar URL y método HTTP según corresponda
+    const url = modoEdicion ? `${API_BASE_URL}/usuarios/${id}` : `${API_BASE_URL}/usuarios`;
+    const metodo = modoEdicion ? "PUT" : "POST";
 
-    // Ocultar mensaje previo
     showMessage("", false);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/usuarios`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(nuevoUsuario)
+        const response = await fetch(url, {
+            method: metodo,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(datosUsuario)
         });
 
         if (response.ok || response.status === 201) {
-            showMessage("¡Usuario registrado con éxito!", true);
-            userForm.reset(); // Limpiar inputs
-            fetchUsuarios();  // Refrescar la tabla automáticamente
+            showMessage(modoEdicion ? "¡Usuario actualizado con éxito!" : "¡Usuario registrado con éxito!", true);
+            cancelarEdicion();
+            fetchUsuarios();
         } else {
-            throw new Error("No se pudo registrar el usuario en el servidor");
+            throw new Error();
         }
-
     } catch (error) {
-        console.error("Error en POST /usuarios:", error);
-        showMessage("Hubo un error al registrar el usuario. Inténtalo de nuevo.", false);
+        console.error("Error en el formulario:", error);
+        showMessage("Ocurrió un error al procesar la solicitud. Verifica los campos.", false);
     }
 });
 
-// --- HELPER: Mostrar mensajes en pantalla ---
+// --- 4. PREPARAR FORMULARIO PARA EDITAR (GET /usuarios/{id}) ---
+async function prepararEdicion(id) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/usuarios/${id}`);
+        if (!response.ok) throw new Error();
+
+        const usuario = await response.json();
+
+        // Cargar los datos devueltos en el formulario
+        usuarioIdInput.value = usuario.id;
+        nombreInput.value = usuario.nombre;
+        emailInput.value = usuario.email;
+
+        // Cambiar interfaz al modo edición
+        modoEdicion = true;
+        formTitle.textContent = "Actualizar Usuario";
+        btnSubmit.textContent = "Guardar Cambios";
+        btnCancel.classList.remove("hidden");
+        
+        nombreInput.focus();
+    } catch (error) {
+        console.error("Error al obtener usuario:", error);
+        showMessage("No se pudieron cargar los datos del usuario.", false);
+    }
+}
+
+// --- 5. ELIMINAR USUARIO (DELETE /usuarios/{id}) ---
+async function eliminarUsuario(id) {
+    if (!confirm(`¿Estás seguro de que deseas eliminar al usuario con ID: ${id}?`)) return;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
+            method: "DELETE"
+        });
+
+        if (response.ok || response.status === 204) {
+            showMessage("Usuario eliminado correctamente.", true);
+            if (modoEdicion && usuarioIdInput.value == id) cancelarEdicion();
+            fetchUsuarios();
+        } else {
+            throw new Error();
+        }
+    } catch (error) {
+        console.error("Error al eliminar:", error);
+        showMessage("No se pudo eliminar el usuario.", false);
+    }
+}
+
+// --- FUNCIONES HELPER ---
+function cancelarEdicion() {
+    modoEdicion = false;
+    userForm.reset();
+    usuarioIdInput.value = "";
+    formTitle.textContent = "Registrar Nuevo Usuario";
+    btnSubmit.textContent = "Registrar Usuario";
+    btnCancel.classList.add("hidden");
+}
+
+btnCancel.addEventListener("click", cancelarEdicion);
+
 function showMessage(text, isSuccess) {
     if (!text) {
         formMessage.className = "message hidden";
@@ -108,7 +171,6 @@ function showMessage(text, isSuccess) {
     formMessage.className = `message ${isSuccess ? 'success' : 'error'}`;
 }
 
-// --- HELPER: Prevenir ataques XSS simples al renderizar texto en la tabla ---
 function escapeHTML(str) {
     return str.replace(/[&<>'"]/g, 
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
@@ -116,11 +178,8 @@ function escapeHTML(str) {
 }
 
 // --- INICIALIZACIÓN ---
-// Ejecutar de inmediato al cargar la página web
 document.addEventListener("DOMContentLoaded", () => {
     checkSystemHealth();
     fetchUsuarios();
-
-    // Opcional: Verificar el estado del sistema automáticamente cada 30 segundos
     setInterval(checkSystemHealth, 30000);
 });

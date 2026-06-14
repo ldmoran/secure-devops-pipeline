@@ -1,4 +1,3 @@
-/* Paleta de colores: Azul Oscuro (#0f172a, #1e293b), Blanco (#ffffff, #f8fafc), Verde (#10b981) */
 :root {
     --bg-primary: #f8fafc;
     --bg-card: #ffffff;
@@ -7,6 +6,9 @@
     --accent-green: #10b981;
     --accent-green-hover: #059669;
     --error-red: #ef4444;
+    --error-red-hover: #dc2626;
+    --warning-orange: #f59e0b;
+    --warning-orange-hover: #d97706;
     --text-main: #334155;
     --text-light: #64748b;
     --border-color: #e2e8f0;
@@ -25,7 +27,6 @@ body {
     line-height: 1.6;
 }
 
-/* Barra superior */
 .navbar {
     background-color: var(--primary-dark);
     color: #ffffff;
@@ -40,7 +41,6 @@ body {
     font-weight: 600;
 }
 
-/* Contenedor principal */
 .container {
     max-width: 1200px;
     margin: 2rem auto;
@@ -50,7 +50,6 @@ body {
     gap: 2rem;
 }
 
-/* Tarjetas (Cards) */
 .card {
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -67,14 +66,12 @@ body {
     padding-bottom: 0.5rem;
 }
 
-/* Grilla Responsiva */
 .grid-2-col {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
     gap: 2rem;
 }
 
-/* Estado del sistema */
 .status-section {
     display: flex;
     flex-direction: column;
@@ -90,7 +87,6 @@ body {
     font-size: 1.1rem;
     margin-top: 0.5rem;
     display: inline-block;
-    transition: all 0.3s ease;
 }
 
 .status-ok {
@@ -111,7 +107,6 @@ body {
     border: 2px dashed var(--text-light);
 }
 
-/* Formularios */
 .form-group {
     margin-bottom: 1.25rem;
 }
@@ -129,7 +124,6 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 6px;
     font-size: 1rem;
-    transition: border-color 0.2s;
 }
 
 .form-group input:focus {
@@ -137,8 +131,13 @@ body {
     border-color: var(--accent-green);
 }
 
+.form-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
 .btn {
-    width: 100%;
+    flex: 1;
     background-color: var(--primary-dark);
     color: white;
     padding: 0.75rem;
@@ -154,7 +153,43 @@ body {
     background-color: var(--secondary-dark);
 }
 
-/* Mensajes dinámicos */
+.btn-secondary {
+    background-color: var(--text-light);
+}
+
+.btn-secondary:hover {
+    background-color: #475569;
+}
+
+/* Botones de acción en la tabla */
+.btn-action {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: white;
+    font-weight: 600;
+    margin-right: 0.5rem;
+    transition: background-color 0.2s;
+}
+
+.btn-edit {
+    background-color: var(--warning-orange);
+}
+
+.btn-edit:hover {
+    background-color: var(--warning-orange-hover);
+}
+
+.btn-delete {
+    background-color: var(--error-red);
+}
+
+.btn-delete:hover {
+    background-color: var(--error-red-hover);
+}
+
 .message {
     margin-top: 1rem;
     padding: 0.75rem;
@@ -174,10 +209,9 @@ body {
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
 
-/* Tablas */
 .table-container {
     overflow-x: auto;
 }
@@ -207,7 +241,6 @@ tr:hover {
     text-align: center;
 }
 
-/* Sección Informativa */
 .info-list {
     list-style: none;
     margin-top: 1rem;
