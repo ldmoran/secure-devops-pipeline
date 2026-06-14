@@ -29,7 +29,7 @@ jobs:
         run: |
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
           -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-          -d "text=🔍 Iniciando análisis de seguridad en PR"
+          -d "text=🔍 Iniciando análisis de seguridad en PR #${{ github.event.pull_request.number }}"
 
       - uses: actions/setup-python@v4
         with:
@@ -51,12 +51,13 @@ jobs:
         run: |
           cat > /tmp/analyze.py << 'PYEOF'
           import joblib, json, sys, subprocess, numpy as np
+          import os
           from security_checker.feature_extractor import JavaCodeAnalyzer
 
           base_ref = "${{ github.base_ref }}"
 
           model = joblib.load('model/classifier_model.joblib')
-          scaler = joblib.load('model/scaler.joblib')  # ← agregar esto
+          scaler = joblib.load('model/scaler.joblib')
           feature_names = json.load(open('model/feature_names.json'))
 
           result = subprocess.run(
@@ -77,6 +78,7 @@ jobs:
 
           vulnerable = False
           mensaje = ''
+          reporte_completo = ''
 
           for f in files:
               try:
@@ -86,30 +88,35 @@ jobs:
 
                   feats = JavaCodeAnalyzer.extract_features(code)
                   X = np.array([feats[n] for n in feature_names]).reshape(1, -1)
-                  X = scaler.transform(X)  # ← agregar esto
-                  prediction = model.predict(X)[0]
-                  print(f'{f} -> Prediccion: {prediction}')
+                  X_scaled = scaler.transform(X)
+                  proba = model.predict_proba(X_scaled)[0]
+                  prediction = 1 if proba[1] >= 0.35 else 0
+
+                  print(f'{f} -> Prediccion: {prediction} (prob VULN: {proba[1]:.3f})')
 
                   if prediction == 1:
                       vulnerable = True
-                      mensaje += f'\nArchivo: {f}\n'
+                      bloque = f'\nArchivo: {f}\n'
+                      bloque += f'Probabilidad de vulnerabilidad: {proba[1]*100:.1f}%\n'
 
                       if feats['dangerous_function_count'] > 0:
-                          mensaje += f'⚠️  Funciones peligrosas: {int(feats["dangerous_function_count"])}\n'
+                          bloque += f'⚠️  Funciones peligrosas: {int(feats["dangerous_function_count"])}\n'
 
                       if feats['sql_pattern_count'] > 0:
-                          mensaje += f'⚠️  Patrones SQL sospechosos: {int(feats["sql_pattern_count"])}\n'
+                          bloque += f'⚠️  Patrones SQL sospechosos: {int(feats["sql_pattern_count"])}\n'
 
                       if feats['system_call_count'] > 0:
-                          mensaje += f'⚠️  Llamadas System: {int(feats["system_call_count"])}\n'
+                          bloque += f'⚠️  Llamadas System: {int(feats["system_call_count"])}\n'
 
                       if feats['reflection_count'] > 0:
-                          mensaje += f'⚠️  Uso de reflexion: {int(feats["reflection_count"])}\n'
+                          bloque += f'⚠️  Uso de reflexion: {int(feats["reflection_count"])}\n'
 
                       if feats['sanitization_count'] == 0:
-                          mensaje += '✅  No se detectaron mecanismos de sanitizacion\n'
+                          bloque += '⚠️  No se detectaron mecanismos de sanitizacion\n'
 
-                      mensaje += '\n'
+                      bloque += '\n'
+                      mensaje += bloque
+                      reporte_completo += bloque
 
               except Exception as e:
                   print(f'ERROR ANALIZANDO {f}: {e}')
@@ -117,45 +124,17 @@ jobs:
           if vulnerable:
               print(mensaje)
               with open('security_report.txt', 'w', encoding='utf-8') as reporte:
-                  reporte.write(mensaje)
+                  reporte.write(reporte_completo)
               print('VULNERABLE')
               sys.exit(1)
           else:
               print('SAFE')
               sys.exit(0)
           PYEOF
-          # Ejecutar con PYTHONPATH apuntando al workspace del repo
           PYTHONPATH=$GITHUB_WORKSPACE python3 /tmp/analyze.py
-      - name: Debug features
-        run: |
-          cat > /tmp/debug.py << 'PYEOF'
-          import joblib, json, sys, numpy as np
-          sys.path.insert(0, '${{ env.GITHUB_WORKSPACE }}')
-          import os
-          sys.path.insert(0, os.environ.get('GITHUB_WORKSPACE', '.'))
-          from security_checker.feature_extractor import JavaCodeAnalyzer
 
-          code = open('src/main/java/com/ejemplo/usuarios/service/UsuarioService.java').read()
-          feats = JavaCodeAnalyzer.extract_features(code)
-
-          print("=== FEATURES EXTRAIDAS ===")
-          for k, v in sorted(feats.items()):
-              print(f"  {k}: {v}")
-
-          feature_names = json.load(open('model/feature_names.json'))
-          X = np.array([feats[n] for n in feature_names]).reshape(1, -1)
-          print("\n=== VECTOR X ===")
-          print(X)
-
-          model = joblib.load('model/classifier_model.joblib')
-          pred = model.predict(X)[0]
-          proba = model.predict_proba(X)[0]
-          print(f"\n=== PREDICCION: {pred} ===")
-          print(f"Probabilidad [SAFE, VULN]: {proba}")
-          PYEOF
-          PYTHONPATH=$GITHUB_WORKSPACE python3 /tmp/debug.py
       - name: Telegram - Codigo SEGURO
-        if: steps.analyze.outcome == 'success'   # ← cambiar conclusion por outcome
+        if: steps.analyze.outcome == 'success'
         run: |
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
           -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
@@ -172,22 +151,46 @@ jobs:
 
           curl -s -G "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
             --data-urlencode "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-            --data-urlencode "text=❌ Vulnerabilidades detectadas:
+            --data-urlencode "text=❌ Vulnerabilidades detectadas en PR #${{ github.event.pull_request.number }}:
 
           $MENSAJE
 
           PR bloqueado."
+
+      - name: Comentario en PR con resultado
+        if: steps.analyze.outcome == 'failure'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            let reporte = 'No se pudo leer el reporte.';
+            try {
+              reporte = fs.readFileSync('security_report.txt', 'utf8');
+            } catch(e) {}
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## ❌ Vulnerabilidades detectadas\n\n\`\`\`\n${reporte}\n\`\`\`\n\n> Pipeline bloqueado. Corrige las vulnerabilidades antes de hacer merge.`
+            })
 
       - name: Create Issue
         if: steps.analyze.outcome == 'failure'
         uses: actions/github-script@v6
         with:
           script: |
+            const fs = require('fs');
+            let reporte = 'Ver logs del pipeline para más detalles.';
+            try {
+              reporte = fs.readFileSync('security_report.txt', 'utf8');
+            } catch(e) {}
+
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: "Vulnerabilidad detectada",
-              body: "Se detectaron vulnerabilidades potenciales. Revisar los logs del pipeline y la notificación enviada por Telegram para obtener más detalles.",
+              title: `Vulnerabilidad detectada en PR #${context.issue.number}`,
+              body: `Se detectaron vulnerabilidades potenciales:\n\n\`\`\`\n${reporte}\n\`\`\``,
               labels: ["security-issue", "fixing-required"]
             })
 
@@ -234,7 +237,7 @@ jobs:
         run: |
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
           -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-          -d "text=🧪 TESTS OK: Python y Java pasaron correctamente"
+          -d "text=🧪 TESTS OK: Python y Java pasaron correctamente. Procediendo al deploy."
 
       - name: Telegram TEST FAIL
         if: failure()
@@ -251,15 +254,16 @@ jobs:
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: "Tests fallidos",
-              body: "Los tests del pipeline han fallado.",
+              title: `Tests fallidos en PR #${context.issue.number}`,
+              body: "Los tests del pipeline han fallado. Revisar logs para más detalles.",
               labels: ["tests-failed"]
             })
 
   merge-and-deploy:
     runs-on: ubuntu-latest
     name: Merge to Main and Deploy
-    if: false
+    needs: tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/test'
 
     steps:
       - uses: actions/checkout@v3
@@ -275,20 +279,25 @@ jobs:
         run: |
           git fetch origin main
           git checkout main
-          git merge --no-ff origin/test -m "Auto-merge from test branch"
+          git merge --no-ff origin/test -m "Auto-merge from test branch [skip ci]"
           git push origin main
+
+      - name: Telegram - Merge exitoso
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+          -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -d "text=🔀 Merge test→main exitoso. Iniciando deploy en Render..."
 
       - name: Deploy to Render
         run: |
-          echo "Deployment triggered - Render webhook will handle the deploy"
-          echo "Webhook URL configured in Render dashboard"
+          curl -s "${{ secrets.RENDER_DEPLOY_HOOK }}"
 
       - name: Telegram - Deploy exitoso
         if: success()
         run: |
           curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
           -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-          -d "text=🚀 Merge test→main exitoso. Deploy en Render iniciado."
+          -d "text=🚀 Deploy exitoso en Render. App online: https://secure-devops-pipeline-1.onrender.com"
 
       - name: Telegram - Deploy fallido
         if: failure()
