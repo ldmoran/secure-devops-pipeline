@@ -39,7 +39,16 @@ public class UsuarioService {
         almacen.put(id, datos);
         return Optional.of(datos);
     }
+        public void login(String usuario, String password) throws Exception {
 
+        String query =
+            "SELECT * FROM usuarios WHERE usuario='"
+            + usuario +
+            "' AND password='" +
+            password + "'";
+
+        Statement stmt = null;
+    }
     public boolean eliminar(Long id) {
         return almacen.remove(id) != null;
     }
