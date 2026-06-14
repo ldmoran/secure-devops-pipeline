@@ -241,7 +241,7 @@ def internal_error(error):
 
 if __name__ == '__main__':
     import pandas as pd
-    send_telegram_message("🚀 Bot Flask iniciado correctamente")
+    #send_telegram_message("🚀 Bot Flask iniciado correctamente")
     # Cargar modelo
     if not load_model():
         print("⚠️  Advertencia: Modelo no cargado. Solo /health disponible")
