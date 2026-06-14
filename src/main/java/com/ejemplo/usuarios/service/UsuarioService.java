@@ -52,7 +52,9 @@ public class UsuarioService {
     public boolean eliminar(Long id) {
         return almacen.remove(id) != null;
     }
-    public void consultaInsegura(String userInput) {
+
+
+        public void consultaInsegura(String userInput) {
     try {
         Connection conn = DriverManager.getConnection(
                 "jdbc:mysql://localhost:3306/db",
@@ -70,7 +72,6 @@ public class UsuarioService {
         while (rs.next()) {
             System.out.println(rs.getString("nombre"));
         }
-
     } catch (Exception e) {
         e.printStackTrace();
     }
