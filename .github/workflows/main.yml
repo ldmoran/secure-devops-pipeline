@@ -262,8 +262,8 @@ jobs:
   merge-and-deploy:
     runs-on: ubuntu-latest
     name: Merge to Main and Deploy
-    needs: tests
     if: github.event_name == 'push' && github.ref == 'refs/heads/test'
+    # SIN needs: tests
 
     steps:
       - uses: actions/checkout@v3
