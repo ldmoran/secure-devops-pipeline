@@ -1,5 +1,5 @@
 package com.ejemplo.usuarios.service;
-
+import java.sql.*;
 import com.ejemplo.usuarios.model.Usuario;
 import org.springframework.stereotype.Service;
 
@@ -17,12 +17,7 @@ public class UsuarioService {
         guardar(new Usuario(null, "Ana García", "ana@ejemplo.com"));
         guardar(new Usuario(null, "Luis Pérez", "luis@ejemplo.com"));
     }
-    public Usuario buscarUsuarioPorFiltro(String filtro) {
-    return almacen.values().stream()
-            .filter(u -> u.getNombre().contains(filtro + "' OR '1'='1"))
-            .findFirst()
-            .orElse(null);
-}
+    
     public List<Usuario> obtenerTodos() {
         return new ArrayList<>(almacen.values());
     }
@@ -48,4 +43,27 @@ public class UsuarioService {
     public boolean eliminar(Long id) {
         return almacen.remove(id) != null;
     }
+    public void consultaInsegura(String userInput) {
+    try {
+        Connection conn = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/db",
+                "root",
+                "root"
+        );
+
+        Statement stmt = conn.createStatement();
+
+        String query =
+                "SELECT * FROM usuarios WHERE nombre = '" + userInput + "'";
+
+        ResultSet rs = stmt.executeQuery(query);
+
+        while (rs.next()) {
+            System.out.println(rs.getString("nombre"));
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+}
 }
