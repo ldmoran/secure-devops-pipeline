@@ -1,5 +1,5 @@
 package com.ejemplo.usuarios.service;
-
+import java.sql.*;
 import com.ejemplo.usuarios.model.Usuario;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +17,7 @@ public class UsuarioService {
         guardar(new Usuario(null, "Ana García", "ana@ejemplo.com"));
         guardar(new Usuario(null, "Luis Pérez", "luis@ejemplo.com"));
     }
-
+    
     public List<Usuario> obtenerTodos() {
         return new ArrayList<>(almacen.values());
     }
@@ -43,4 +43,5 @@ public class UsuarioService {
     public boolean eliminar(Long id) {
         return almacen.remove(id) != null;
     }
+    
 }
