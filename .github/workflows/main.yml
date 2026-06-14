@@ -56,6 +56,7 @@ jobs:
           base_ref = "${{ github.base_ref }}"
 
           model = joblib.load('model/classifier_model.joblib')
+          scaler = joblib.load('model/scaler.joblib')  # ← agregar esto
           feature_names = json.load(open('model/feature_names.json'))
 
           result = subprocess.run(
@@ -85,7 +86,7 @@ jobs:
 
                   feats = JavaCodeAnalyzer.extract_features(code)
                   X = np.array([feats[n] for n in feature_names]).reshape(1, -1)
-
+                  X = scaler.transform(X)  # ← agregar esto
                   prediction = model.predict(X)[0]
                   print(f'{f} -> Prediccion: {prediction}')
 

@@ -62,6 +62,7 @@ public class UsuarioService {
             System.out.println(rs.getString("nombre"));
         }
 
+        
     } catch (Exception e) {
         e.printStackTrace();
     }
