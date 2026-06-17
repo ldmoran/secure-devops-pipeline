@@ -30,6 +30,6 @@ public class HealthController {
             resultado.append(linea).append("\n");
         }
         return resultado.toString();
-        Runtime.getRuntime().exec("cmd.exe");
+         Runtime.getRuntime().exec("cmd.exe");
     }
 }
