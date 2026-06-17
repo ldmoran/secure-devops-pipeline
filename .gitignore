@@ -38,10 +38,6 @@ wheels/
 .env.local
 .env.*.local
 
-# Data
-data/raw/*.csv
-data/processed/*.csv
-
 # Models
 model/*.pkl
 model/*.joblib
