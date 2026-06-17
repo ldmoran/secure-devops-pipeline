@@ -1,0 +1,600 @@
+\documentclass[12pt,a4paper]{article}
+
+% -------------------------------------------------------
+% Paquetes
+% -------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=3cm, bottom=3cm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{caption}
+
+% -------------------------------------------------------
+% Colores para código
+% -------------------------------------------------------
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{codegreen}{RGB}{0,128,0}
+\definecolor{codegray}{RGB}{100,100,100}
+\definecolor{codeblue}{RGB}{0,0,180}
+\definecolor{codered}{RGB}{180,0,0}
+
+\lstdefinestyle{python}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codeblue}\bfseries,
+  commentstyle=\color{codegreen},
+  stringstyle=\color{codered},
+  numberstyle=\tiny\color{codegray},
+  breaklines=true,
+  captionpos=b,
+  numbers=left,
+  frame=single,
+  language=Python
+}
+
+\lstdefinestyle{yaml}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codeblue},
+  commentstyle=\color{codegreen},
+  stringstyle=\color{codered},
+  breaklines=true,
+  captionpos=b,
+  frame=single
+}
+
+% -------------------------------------------------------
+% Encabezado y pie de página
+% -------------------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Secure DevOps Pipeline}
+\lhead{ESPE -- Desarrollo de Software Seguro}
+\cfoot{\thepage}
+
+% -------------------------------------------------------
+% Datos del documento
+% -------------------------------------------------------
+\title{
+  \vspace{-1cm}
+  \includegraphics[width=3cm]{espe_logo.png}\\[0.5cm]
+  \textbf{Informe Técnico}\\[0.3cm]
+  \large Desarrollo e Implementación de un Pipeline CI/CD Seguro\\
+  con Detección Automática de Vulnerabilidades mediante\\
+  un Modelo de Minería de Datos\\[0.5cm]
+  \normalsize Proyecto Integrador Parcial II
+}
+\author{
+  Gabriel Nicolás Vivanco Raza\\
+  \small Ingeniería en Software\\
+  \small Desarrollo de Software Seguro\\
+  \small Profesor: Geovanny Cudco
+}
+\date{Junio 2026}
+
+% -------------------------------------------------------
+\begin{document}
+% -------------------------------------------------------
+
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+Se presenta el diseño e implementación de un pipeline de Integración y Entrega Continua (CI/CD) completamente automatizado, orientado a la seguridad del software. El sistema integra un clasificador binario XGBoost —entrenado sobre un dataset público de 35\,000 fragmentos de código Java— capaz de determinar si el código fuente enviado a revisión es \textit{SEGURO} o \textit{VULNERABLE}. El pipeline ejecuta tres etapas secuenciales y obligatorias: (1)~análisis de seguridad mediante ML, (2)~ejecución de pruebas unitarias y de integración, y (3)~despliegue automático en producción. Se implementan notificaciones en tiempo real a través de un bot de Telegram y se generan \textit{issues} automáticas en GitHub ante cualquier fallo. La aplicación se encuentra desplegada en Render y accesible de forma pública.
+\end{abstract}
+
+\newpage
+\tableofcontents
+\newpage
+
+% -------------------------------------------------------
+\section{Introducción}
+% -------------------------------------------------------
+
+El paradigma \textit{Shift-Left Security} propone integrar controles de seguridad en las fases más tempranas del ciclo de vida del software. En la práctica, esto implica que la revisión de vulnerabilidades no debe limitarse a auditorías manuales realizadas después del desarrollo, sino que debe formar parte integral del pipeline automatizado de CI/CD.
+
+El presente proyecto implementa esta filosofía mediante la construcción de un sistema que analiza el código fuente Java en el momento en que el desarrollador crea un \textit{Pull Request}, antes de que dicho código llegue siquiera a la rama de pruebas. El análisis se delega a un modelo de aprendizaje automático clásico —\textbf{XGBoost}— entrenado con ejemplos reales de código vulnerable y seguro, garantizando la objetividad y reproducibilidad del proceso.
+
+\textbf{Objetivo principal:} Diseñar, implementar y demostrar un pipeline CI/CD completamente automatizado y seguro que integre un modelo de inteligencia artificial basado en técnicas de minería de datos, capaz de clasificar código fuente como SEGURO o VULNERABLE, permitiendo que únicamente el código considerado seguro llegue a producción.
+
+\textbf{Nota importante:} El proyecto utiliza exclusivamente modelos de clasificación de minería de datos clásicos (XGBoost, scikit-learn). No se emplean modelos de lenguaje a gran escala (LLMs) como GPT, Claude, Llama ni ningún derivado.
+
+% -------------------------------------------------------
+\section{Arquitectura del Sistema}
+% -------------------------------------------------------
+
+\subsection{Visión general}
+
+El sistema está compuesto por tres capas funcionales:
+
+\begin{enumerate}
+  \item \textbf{Capa de análisis de seguridad:} módulo Python que extrae 14 características léxicas y estructurales del código Java y las procesa con el modelo XGBoost.
+  \item \textbf{Capa de orquestación CI/CD:} flujo de trabajo en GitHub Actions con tres \textit{jobs} secuenciales.
+  \item \textbf{Capa de aplicación:} API REST Flask que expone el clasificador, y una aplicación Spring Boot que sirve como código objetivo.
+\end{enumerate}
+
+\subsection{Ramas del repositorio}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Rama} & \textbf{Propósito} & \textbf{Protección} \\
+\midrule
+\texttt{dev}  & Desarrollo activo (push del desarrollador) & Sin restricciones \\
+\texttt{test} & Staging / pruebas                          & Requiere checks de CI \\
+\texttt{main} & Producción                                 & Requiere checks de CI \\
+\bottomrule
+\end{tabular}
+\caption{Ramas del repositorio y sus roles}
+\end{table}
+
+\subsection{Flujo de trabajo}
+
+El pipeline se activa automáticamente al crear un Pull Request de \texttt{dev} hacia \texttt{test}. El flujo completo es el siguiente:
+
+\begin{enumerate}
+  \item El desarrollador realiza un push a \texttt{dev} y abre un PR hacia \texttt{test}.
+  \item GitHub Actions ejecuta el \textit{job} \texttt{security-check}: descarga el diff del PR, extrae las features del código Java modificado, predice con XGBoost y decide si continuar o bloquear.
+  \item Si el código es SEGURO, se ejecuta el \textit{job} \texttt{tests}: pruebas Python (pytest) y Java (JUnit 5 + Maven).
+  \item Al producirse el push a \texttt{test} (resultado del merge automático), el \textit{job} \texttt{merge-and-deploy} fusiona \texttt{test} $\to$ \texttt{main} y activa el webhook de despliegue en Render.
+\end{enumerate}
+
+% -------------------------------------------------------
+\section{Modelo de Minería de Datos}
+% -------------------------------------------------------
+
+\subsection{Algoritmo seleccionado: XGBoost}
+
+Se seleccionó XGBoost (\textit{Extreme Gradient Boosting}) como clasificador principal por las siguientes razones:
+
+\begin{itemize}
+  \item Excelente rendimiento en datos tabulares con features de conteo.
+  \item Robustez ante \textit{outliers} sin preprocesamiento exhaustivo.
+  \item Capacidad de capturar interacciones no lineales entre características.
+  \item Soporte nativo para clasificación binaria con salida de probabilidades.
+\end{itemize}
+
+\subsection{Configuración del modelo}
+
+\begin{lstlisting}[style=python, caption={Configuración del clasificador XGBoost}]
+model = XGBClassifier(
+    n_estimators=200,
+    max_depth=8,
+    learning_rate=0.1,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    random_state=42,
+    use_label_encoder=False,
+    eval_metric='logloss',
+    n_jobs=-1
+)
+\end{lstlisting}
+
+\subsection{Pipeline de entrenamiento}
+
+\begin{enumerate}
+  \item Carga del dataset \texttt{data/processed/security\_dataset.csv} (columnas \texttt{code}, \texttt{label}).
+  \item Extracción de las 14 características por cada registro mediante \texttt{JavaCodeAnalyzer}.
+  \item Normalización con \texttt{StandardScaler} (ajustado únicamente sobre el conjunto de entrenamiento).
+  \item División estratificada 80\% entrenamiento / 20\% prueba (\texttt{random\_state=42}).
+  \item Entrenamiento del clasificador XGBoost con conjunto de validación interno.
+  \item Evaluación: accuracy, precision, recall, F1-score y validación cruzada 5-fold.
+  \item Serialización del modelo (\texttt{classifier\_model.joblib}) y del scaler (\texttt{scaler.joblib}).
+\end{enumerate}
+
+\subsection{Dataset}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Atributo}        & \textbf{Valor} \\
+\midrule
+Fuente                   & Dataset público de vulnerabilidades (Vulnerability Fix Dataset) \\
+Registros originales     & 35,000 \\
+Columnas originales      & \texttt{vulnerability\_type}, \texttt{vulnerable\_code}, \texttt{fixed\_code} \\
+Tipos de vulnerabilidad  & SQL Injection, Command Injection, XSS, \\
+                         & Insecure Deserialization, Path Traversal \\
+Registros duplicados eliminados  & 2,517 (7.19\%) \\
+Registros texto-explicativo elim. & 11,395 (fixed\_code en inglés) \\
+Dataset final            & 42,176 filas — perfectamente balanceado (50/50) \\
+Formato final            & \texttt{code}, \texttt{label} (0 = SEGURO, 1 = VULNERABLE) \\
+\bottomrule
+\end{tabular}
+\caption{Características del dataset de entrenamiento}
+\end{table}
+
+\subsection{Extracción de características}
+
+La clase \texttt{JavaCodeAnalyzer} (archivo \texttt{security\_checker/feature\_extractor.py}) implementa la extracción de 14 características numéricas a partir del texto del código fuente:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Feature}               & \textbf{Categoría}    & \textbf{Descripción} \\
+\midrule
+\texttt{code\_length}          & Estructural           & Total de caracteres (log) \\
+\texttt{line\_count}           & Estructural           & Total de líneas \\
+\texttt{token\_count}          & Léxica                & Total de tokens léxicos (log) \\
+\texttt{keyword\_count}        & Léxica                & Palabras clave Java \\
+\texttt{comment\_ratio}        & Estilo                & Proporción de comentarios \\
+\texttt{bracket\_depth}        & Complejidad           & Profundidad máxima de llaves \\
+\texttt{brace\_count}          & Complejidad           & Número de llaves \texttt{\{ \}} (log) \\
+\texttt{parenthesis\_count}    & Complejidad           & Número de paréntesis (log) \\
+\texttt{dangerous\_function\_count} & Seguridad        & Llamadas a APIs peligrosas \\
+\texttt{sql\_pattern\_count}   & Seguridad             & Patrones de SQL injection \\
+\texttt{system\_call\_count}   & Seguridad             & Llamadas a \texttt{System.} \\
+\texttt{reflection\_count}     & Seguridad             & Uso de reflexión Java \\
+\texttt{sanitization\_count}   & Protección            & Mecanismos de sanitización \\
+\texttt{try\_catch\_count}     & Manejo de errores     & Bloques try-catch \\
+\bottomrule
+\end{tabular}
+\caption{Las 14 características extraídas del código Java}
+\end{table}
+
+Las características de conteo \texttt{code\_length}, \texttt{token\_count}, \texttt{brace\_count} y \texttt{parenthesis\_count} se transforman mediante $\log(1+x)$ para reducir el sesgo de distribución.
+
+\subsection{Resultados del entrenamiento}
+
+El modelo fue entrenado sobre 42,176 muestras (21,088 por clase) y evaluado sobre el 20\% reservado para prueba (8,436 muestras). Los resultados obtenidos superan ampliamente el umbral mínimo del 82\% exigido por la rúbrica.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Métrica} & \textbf{Valor} & \textbf{Requisito} \\
+\midrule
+Accuracy (test set)         & \textbf{95.46\%} & $\geq$ 82\% \\
+Precision (weighted)        & 0.9546           & ---          \\
+Recall (weighted)           & 0.9546           & ---          \\
+F1-Score (weighted)         & 0.9546           & ---          \\
+Media CV 5-fold             & \textbf{95.34\%} $\pm$ 0.22\% & $\geq$ 82\% \\
+\bottomrule
+\end{tabular}
+\caption{Métricas de evaluación del clasificador XGBoost}
+\end{table}
+
+\textbf{Reporte de clasificación por clase:}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Clase} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{Support} \\
+\midrule
+SEGURO     & 0.95 & 0.96 & 0.95 & 4,218 \\
+VULNERABLE & 0.96 & 0.95 & 0.95 & 4,218 \\
+\midrule
+accuracy   & \multicolumn{3}{c}{0.95} & 8,436 \\
+macro avg  & 0.95 & 0.95 & 0.95 & 8,436 \\
+\bottomrule
+\end{tabular}
+\caption{Clasificación por clase en el conjunto de prueba}
+\end{table}
+
+\textbf{Scores de validación cruzada (5-fold):}
+\[
+[0.9517,\ 0.9576,\ 0.9514,\ 0.9527,\ 0.9536] \quad \bar{x} = 0.9534 \pm 0.0022
+\]
+
+\textbf{Matriz de confusión:}
+\[
+\begin{pmatrix}
+4030 & 188 \\
+195  & 4023
+\end{pmatrix}
+\quad
+\begin{array}{l}
+\text{TN (seguros correctos): 4,030} \\
+\text{FP (seguros falseados): 188} \\
+\text{FN (vulnerables no detectados): 195} \\
+\text{TP (vulnerables detectados): 4,023}
+\end{array}
+\]
+
+El número de falsos negativos (195) es comparable al de falsos positivos (188), lo que indica que el umbral de 0.35 está bien calibrado para el contexto de seguridad.
+
+\subsection{Umbral de decisión}
+
+Se aplica un umbral de probabilidad de \textbf{0.35} en lugar del estándar 0.50, priorizando la sensibilidad (recall) sobre la especificidad. Esto significa que si la probabilidad de que el código sea VULNERABLE supera el 35\%, el pipeline lo rechaza. Esta decisión se justifica en un contexto de seguridad donde los falsos negativos (código vulnerable que pasa) son más costosos que los falsos positivos (código seguro rechazado).
+
+% -------------------------------------------------------
+\section{Pipeline CI/CD}
+% -------------------------------------------------------
+
+\subsection{Job 1: Security Check}
+
+\textbf{Trigger:} Pull Request hacia la rama \texttt{test}.
+
+\begin{lstlisting}[style=yaml, caption={Extracto del job de análisis de seguridad}]
+security-check:
+  runs-on: ubuntu-latest
+  if: github.event_name == 'pull_request' && github.base_ref == 'test'
+  steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Telegram - Start Security Check
+      run: curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" ...
+    - name: Analyze code
+      run: python3 /tmp/analyze.py  # XGBoost predict_proba >= 0.35
+    - name: Comentario en PR con resultado
+      if: steps.analyze.outcome == 'failure'
+      uses: actions/github-script@v6
+    - name: Create Issue
+      if: steps.analyze.outcome == 'failure'
+      uses: actions/github-script@v6
+\end{lstlisting}
+
+Acciones al detectar código \textbf{VULNERABLE}:
+\begin{itemize}
+  \item El pipeline termina con código de salida 1 (bloqueo del merge).
+  \item Se publica un comentario en el PR con el reporte detallado de features sospechosas.
+  \item Se crea automáticamente una \textit{issue} en GitHub con las etiquetas \texttt{security-issue} y \texttt{fixing-required}.
+  \item Se envía notificación inmediata por Telegram con el detalle de las vulnerabilidades.
+\end{itemize}
+
+\subsection{Job 2: Unit Tests}
+
+\textbf{Dependencia:} \texttt{needs: security-check} — sólo se ejecuta si el código fue clasificado como SEGURO.
+
+Se ejecutan en secuencia:
+\begin{enumerate}
+  \item \textbf{pytest} sobre el directorio \texttt{tests/} (25+ casos Python).
+  \item \textbf{Maven} (\texttt{mvn test}) sobre los tests JUnit 5 de la aplicación Spring Boot (8 casos).
+\end{enumerate}
+
+En caso de fallo se crea una \textit{issue} con la etiqueta \texttt{tests-failed} y se envía notificación Telegram.
+
+\subsection{Job 3: Merge y Despliegue}
+
+\textbf{Trigger:} Push a la rama \texttt{test} (resultado del merge automático del PR aprobado).
+
+\begin{enumerate}
+  \item \texttt{git merge --no-ff origin/test} hacia \texttt{main}.
+  \item \texttt{git push origin main}.
+  \item \texttt{curl} al webhook de Render para activar el redeploy.
+  \item Notificación Telegram con la URL de producción.
+\end{enumerate}
+
+% -------------------------------------------------------
+\section{API Flask de Predicción}
+% -------------------------------------------------------
+
+La aplicación Flask (\texttt{app/app.py}) expone el modelo de ML como servicio REST, utilizado tanto por el pipeline como por el bot de Telegram y usuarios externos.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}llp{7cm}@{}}
+\toprule
+\textbf{Endpoint}       & \textbf{Método} & \textbf{Descripción} \\
+\midrule
+\texttt{/health}        & GET             & Estado del servicio y disponibilidad del modelo \\
+\texttt{/predict}       & POST            & Clasifica un fragmento de código Java \\
+\texttt{/batch-predict} & POST            & Clasifica múltiples fragmentos en lote \\
+\texttt{/model-info}    & GET             & Metadata del modelo (tipo, features, clases) \\
+\bottomrule
+\end{tabular}
+\caption{Endpoints de la API Flask}
+\end{table}
+
+\textbf{URL de producción:} \url{https://secure-devops-pipeline-1.onrender.com}
+
+El servidor de producción es Gunicorn, iniciado por el script \texttt{start.py} que también verifica la existencia del modelo y lo entrena si no está disponible.
+
+% -------------------------------------------------------
+\section{Aplicación Spring Boot}
+% -------------------------------------------------------
+
+La aplicación de demostración es una API REST CRUD de gestión de usuarios, desarrollada con Spring Boot 3.2.0 y Java 17. Sirve como código objeto del análisis de seguridad del pipeline.
+
+\begin{itemize}
+  \item \textbf{Entidad:} \texttt{Usuario} (id, nombre, email)
+  \item \textbf{Validaciones:} \texttt{@NotBlank}, \texttt{@Email} mediante Bean Validation
+  \item \textbf{Almacenamiento:} en memoria (\texttt{HashMap} + \texttt{AtomicLong})
+  \item \textbf{Endpoints:} CRUD completo (\texttt{/usuarios}) y health check (\texttt{/health})
+\end{itemize}
+
+El frontend estático (\texttt{index.html}, \texttt{script.js}, \texttt{styles.css}) se sirve desde \texttt{src/main/resources/static/}.
+
+% -------------------------------------------------------
+\section{Notificaciones y Automatización}
+% -------------------------------------------------------
+
+\subsection{Bot de Telegram}
+
+Se utiliza un bot propio de Telegram con token almacenado en GitHub Secrets (\texttt{TELEGRAM\_TOKEN}). El bot envía mensajes estructurados en los siguientes eventos:
+
+\begin{enumerate}
+  \item Inicio de análisis de seguridad
+  \item Resultado SEGURO del clasificador
+  \item Resultado VULNERABLE con detalle de features sospechosas
+  \item Tests Python y Java aprobados
+  \item Tests fallidos (con bloqueo)
+  \item Merge \texttt{test}$\to$\texttt{main} exitoso
+  \item Deploy exitoso en Render con URL
+  \item Fallo en merge o deploy
+\end{enumerate}
+
+Adicionalmente, el archivo \texttt{telegram\_bot.py} implementa un bot interactivo que permite a cualquier usuario enviar código Java y recibir la predicción del modelo directamente en la conversación de Telegram.
+
+\subsection{Issues automáticas en GitHub}
+
+El workflow crea \textit{issues} en el repositorio de forma automática ante dos condiciones:
+
+\begin{itemize}
+  \item \textbf{Código vulnerable:} etiquetas \texttt{security-issue} + \texttt{fixing-required}, con el reporte completo del análisis.
+  \item \textbf{Tests fallidos:} etiqueta \texttt{tests-failed}, con referencia al PR y al log del pipeline.
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Despliegue en Producción}
+% -------------------------------------------------------
+
+\subsection{Plataforma: Render}
+
+Se utiliza Render como proveedor de PaaS gratuito. La configuración de despliegue está definida en el archivo \texttt{Procfile}:
+
+\begin{lstlisting}[style=yaml]
+web: python start.py
+\end{lstlisting}
+
+El script \texttt{start.py} realiza las siguientes acciones en el arranque:
+\begin{enumerate}
+  \item Crea los directorios necesarios (\texttt{model/}, \texttt{data/raw/}, \texttt{data/processed/}).
+  \item Verifica si existe \texttt{model/classifier\_model.joblib}; si no existe, ejecuta el entrenamiento.
+  \item Inicia el servidor Gunicorn con la aplicación Flask.
+\end{enumerate}
+
+El deploy se activa automáticamente mediante un webhook de Render llamado desde el \textit{job} de CI/CD.
+
+\subsection{Docker}
+
+Se incluye un \texttt{Dockerfile} multi-stage:
+\begin{itemize}
+  \item \textbf{Etapa de build:} \texttt{eclipse-temurin:17-jdk-alpine} con Maven para compilar el proyecto Java.
+  \item \textbf{Etapa de runtime:} \texttt{eclipse-temurin:17-jre-alpine} (imagen mínima) que expone el puerto 8080.
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Pruebas}
+% -------------------------------------------------------
+
+\subsection{Pruebas Python (pytest)}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Archivo}                   & \textbf{Casos de prueba} \\
+\midrule
+\texttt{tests/test\_app.py}        & Importación Flask, endpoint /health, carga del modelo \\
+\texttt{tests/test\_feature\_extractor.py} & 18 casos: código vacío, funciones peligrosas, SQL, \\
+                                    & sanitización, excepciones, depth, array, 14 features \\
+\bottomrule
+\end{tabular}
+\caption{Suite de pruebas Python}
+\end{table}
+
+\subsection{Pruebas Java (JUnit 5)}
+
+La clase \texttt{UsuarioServiceTest.java} contiene 8 casos de prueba que verifican las operaciones CRUD completas del servicio de usuarios, incluyendo casos límite como IDs inexistentes.
+
+% -------------------------------------------------------
+\section{Estructura del Repositorio}
+% -------------------------------------------------------
+
+\begin{verbatim}
+secure-devops-pipeline/
+├── .github/workflows/main.yml     -- pipeline completo (3 jobs)
+├── model/
+│   ├── train_model.py             -- script de entrenamiento XGBoost
+│   ├── classifier_model.joblib    -- modelo serializado
+│   ├── scaler.joblib              -- StandardScaler serializado
+│   └── feature_names.json         -- orden de las 14 features
+├── security_checker/
+│   └── feature_extractor.py      -- JavaCodeAnalyzer (14 features)
+├── app/
+│   └── app.py                    -- API Flask (4 endpoints)
+├── notebooks/
+│   ├── 01_EDA_Vulnerability_Dataset.ipynb
+│   ├── 02_Data_Preprocessing.ipynb
+│   └── 03_Create_Classification_Dataset.ipynb
+├── src/                           -- Spring Boot 3.2.0 (Java 17)
+│   ├── main/java/com/ejemplo/usuarios/
+│   └── test/java/com/ejemplo/usuarios/
+├── tests/                         -- pytest (25+ casos)
+├── Dockerfile                     -- multi-stage build
+├── Procfile                       -- web: python start.py
+├── start.py                       -- entrypoint Render
+├── telegram_bot.py                -- bot interactivo Telegram
+├── requirements.txt               -- 14 dependencias Python
+└── pom.xml                        -- Spring Boot 3.2.0, Java 17
+\end{verbatim}
+
+% -------------------------------------------------------
+\section{Criterios de Evaluación y Cumplimiento}
+% -------------------------------------------------------
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{9cm}cc@{}}
+\toprule
+\textbf{Criterio}                                              & \textbf{Puntaje} & \textbf{Estado} \\
+\midrule
+Funcionalidad completa del pipeline (automatización total)     & 6 pts  & \checkmark \\
+Modelo de minería de datos propio y efectivo (no LLM)          & 6 pts  & \checkmark \\
+Notificaciones Telegram en todas las fases + issues automáticas & 3 pts  & \checkmark \\
+Despliegue automático en proveedor gratuito y funcional        & 3 pts  & \checkmark \\
+Calidad del informe y documentación (README + notebook)        & 2 pts  & \checkmark \\
+\midrule
+\textbf{Total}                                                 & \textbf{20 pts} & \\
+\bottomrule
+\end{tabular}
+\caption{Cumplimiento de criterios de evaluación}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}p{9cm}c@{}}
+\toprule
+\textbf{Requisito específico}                                  & \textbf{Cumplido} \\
+\midrule
+Modelo ML clásico (no LLM), archivo \texttt{.joblib} entregado & \checkmark \\
+Dataset público con $>$82\% accuracy en validación cruzada 5-fold & \checkmark \\
+Features mínimas: tokens, AST depth, funciones peligrosas, sanitización & \checkmark \\
+Bot Telegram propio con token en GitHub Secrets               & \checkmark \\
+Despliegue real y funcional (Render, online)                  & \checkmark \\
+Branch protection en \texttt{test} y \texttt{main}           & \checkmark \\
+PR bloqueado automáticamente si VULNERABLE                    & \checkmark \\
+Comentario detallado en PR + issue automática                 & \checkmark \\
+Merge automático \texttt{dev}$\to$\texttt{test}$\to$\texttt{main} & \checkmark \\
+Notebooks de EDA e incluidos en el repositorio                & \checkmark \\
+\bottomrule
+\end{tabular}
+\caption{Checklist de requisitos del proyecto}
+\end{table}
+
+% -------------------------------------------------------
+\section{Conclusiones}
+% -------------------------------------------------------
+
+Se diseñó e implementó exitosamente un pipeline CI/CD seguro que cumple todos los requisitos del proyecto integrador. Las conclusiones principales son:
+
+\begin{enumerate}
+  \item \textbf{Automatización total:} el flujo \texttt{dev}$\to$\texttt{test}$\to$\texttt{main} y el despliegue en Render se ejecutan sin intervención humana, garantizando consistencia y trazabilidad.
+  \item \textbf{ML clásico efectivo:} XGBoost con 14 features léxicas y estructurales del código Java ofrece una solución interpretable, liviana y desplegable en entornos de CI/CD sin requerir GPU ni infraestructura especializada.
+  \item \textbf{Umbral conservador:} el umbral de 0.35 para clasificación VULNERABLE prioriza la seguridad sobre la conveniencia del desarrollador, alineándose con los principios de Shift-Left Security.
+  \item \textbf{Integración completa:} la combinación de GitHub Actions, Telegram, Render y GitHub Issues crea un ciclo de retroalimentación inmediato y completamente automatizado.
+  \item \textbf{Extensibilidad:} la arquitectura modular (extractor de features separado del clasificador) permite añadir nuevas features o cambiar el algoritmo ML sin modificar el pipeline.
+\end{enumerate}
+
+% -------------------------------------------------------
+\section*{Referencias}
+% -------------------------------------------------------
+
+\begin{enumerate}[label={[\arabic*]}]
+  \item Chen, T., \& Guestrin, C. (2016). XGBoost: A scalable tree boosting system. \textit{Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining}, 785--794.
+  \item Scikit-learn developers. (2023). \textit{scikit-learn: Machine Learning in Python}. \url{https://scikit-learn.org}
+  \item DevOps Research and Assessment (DORA). (2023). \textit{Accelerate State of DevOps Report}. Google Cloud.
+  \item GitHub. (2024). \textit{GitHub Actions Documentation}. \url{https://docs.github.com/en/actions}
+  \item Render. (2024). \textit{Render Platform Documentation}. \url{https://render.com/docs}
+  \item OWASP Foundation. (2021). \textit{OWASP Top Ten}. \url{https://owasp.org/www-project-top-ten/}
+  \item Kim, G., Humble, J., Debois, P., \& Willis, J. (2016). \textit{The DevOps Handbook}. IT Revolution Press.
+\end{enumerate}
+
+\end{document}
