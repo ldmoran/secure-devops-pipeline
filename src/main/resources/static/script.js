@@ -22,13 +22,13 @@ async function checkSystemHealth() {
     try {
         const response = await fetch(`${API_BASE_URL}/health`);
         if (response.ok) {
-            statusIndicator.textContent = "Sistema Operativo";
+            statusIndicator.textContent = "En línea";
             statusIndicator.className = "status-badge status-ok";
         } else {
             throw new Error();
         }
     } catch (error) {
-        statusIndicator.textContent = "Sistema No Disponible";
+        statusIndicator.textContent = "No disponible";
         statusIndicator.className = "status-badge status-error";
     }
 }
@@ -43,7 +43,7 @@ async function fetchUsuarios() {
         usersTableBody.innerHTML = "";
 
         if (usuarios.length === 0) {
-            usersTableBody.innerHTML = `<tr><td colspan="4" class="text-center">No hay usuarios registrados.</td></tr>`;
+            usersTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">No hay pacientes registrados.</td></tr>`;
             return;
         }
 
@@ -90,7 +90,7 @@ userForm.addEventListener("submit", async (e) => {
         });
 
         if (response.ok || response.status === 201) {
-            showMessage(modoEdicion ? "¡Usuario actualizado con éxito!" : "¡Usuario registrado con éxito!", true);
+            showMessage(modoEdicion ? "Paciente actualizado correctamente." : "Paciente registrado con éxito.", true);
             cancelarEdicion();
             fetchUsuarios();
         } else {
@@ -117,8 +117,8 @@ async function prepararEdicion(id) {
 
         // Cambiar interfaz al modo edición
         modoEdicion = true;
-        formTitle.textContent = "Actualizar Usuario";
-        btnSubmit.textContent = "Guardar Cambios";
+        formTitle.textContent = "Actualizar Paciente";
+        btnSubmit.textContent = "Guardar cambios";
         btnCancel.classList.remove("hidden");
         
         nombreInput.focus();
@@ -130,7 +130,7 @@ async function prepararEdicion(id) {
 
 // --- 5. ELIMINAR USUARIO (DELETE /usuarios/{id}) ---
 async function eliminarUsuario(id) {
-    if (!confirm(`¿Estás seguro de que deseas eliminar al usuario con ID: ${id}?`)) return;
+    if (!confirm(`¿Confirmar eliminación del paciente con ID ${id}?`)) return;
 
     try {
         const response = await fetch(`${API_BASE_URL}/usuarios/${id}`, {
@@ -138,7 +138,7 @@ async function eliminarUsuario(id) {
         });
 
         if (response.ok || response.status === 204) {
-            showMessage("Usuario eliminado correctamente.", true);
+            showMessage("Paciente eliminado correctamente.", true);
             if (modoEdicion && usuarioIdInput.value == id) cancelarEdicion();
             fetchUsuarios();
         } else {
@@ -155,8 +155,8 @@ function cancelarEdicion() {
     modoEdicion = false;
     userForm.reset();
     usuarioIdInput.value = "";
-    formTitle.textContent = "Registrar Nuevo Usuario";
-    btnSubmit.textContent = "Registrar Usuario";
+    formTitle.textContent = "Nuevo Paciente";
+    btnSubmit.textContent = "Registrar paciente";
     btnCancel.classList.add("hidden");
 }
 
