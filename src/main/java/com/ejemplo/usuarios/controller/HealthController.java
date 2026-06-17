@@ -1,16 +1,15 @@
-
-
 package com.ejemplo.usuarios.controller;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import org.springframework.web.bind.annotation.*;
+import java.io.*;
+import java.sql.*;
 
 @RestController
 public class HealthController {
+
+    private static final String DB_URL = "jdbc:mysql://localhost/app";
+    private static final String DB_USER = "root";
+    private static final String DB_PASS = "root";
 
     @GetMapping("/health")
     public String health() {
@@ -29,7 +28,40 @@ public class HealthController {
         while ((linea = reader.readLine()) != null) {
             resultado.append(linea).append("\n");
         }
+        proceso.waitFor();
         return resultado.toString();
-         Runtime.getRuntime().exec("cmd.exe");
+    }
+
+    @GetMapping("/logs")
+    public String verLog(@RequestParam String archivo) throws Exception {
+        ProcessBuilder pb = new ProcessBuilder("cat", archivo);
+        Process p = pb.start();
+        BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = br.readLine()) != null) {
+            sb.append(line).append("\n");
+        }
+        return sb.toString();
+    }
+
+    @GetMapping("/buscar")
+    public String buscarRegistro(@RequestParam String id) throws Exception {
+        Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+        Statement stmt = conn.createStatement();
+        String query = "SELECT * FROM registros WHERE id = " + id;
+        ResultSet rs = stmt.executeQuery(query);
+        if (rs.next()) {
+            return rs.getString("contenido");
+        }
+        conn.close();
+        return "No encontrado";
+    }
+
+    @DeleteMapping("/limpiar")
+    public String limpiarCache(@RequestParam String directorio) throws Exception {
+        Runtime.getRuntime().exec("rm -rf " + directorio);
+        System.exit(0);
+        return "OK";
     }
 }
