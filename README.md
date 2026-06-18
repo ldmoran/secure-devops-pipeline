@@ -41,6 +41,7 @@ El proyecto implementa el paradigma **Shift-Left Security**: el análisis de vul
 ---
 
 ## Flujo del Pipeline
+<img width="1408" height="768" alt="Gemini_Generated_Image_pv6owhpv6owhpv6o" src="https://github.com/user-attachments/assets/9ebe1a3f-2ff6-483a-a91e-3ea9b8d05986" />
 
 ```
   Developer
